@@ -9,6 +9,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -63,16 +64,6 @@ fun calculateCountdown(
 
     return try {
 
-        /*
-         * Your date is stored as:
-         *
-         * 26/8/2026
-         *
-         * and time as:
-         *
-         * 18:30
-         */
-
         val dateFormat =
             SimpleDateFormat(
                 "d/M/yyyy HH:mm",
@@ -84,19 +75,14 @@ fun calculateCountdown(
                 "$date $time"
             ) ?: return "Invalid date"
 
-
         val now =
             System.currentTimeMillis()
-
 
         val difference =
             dueDate.time - now
 
-
         /*
-         * ====================================================
          * OVERDUE
-         * ====================================================
          */
 
         if (difference <= 0) {
@@ -104,89 +90,63 @@ fun calculateCountdown(
             val overdue =
                 -difference
 
-
             val totalMinutes =
                 overdue / (1000 * 60)
-
 
             val days =
                 totalMinutes / (60 * 24)
 
-
             val hours =
                 (totalMinutes % (60 * 24)) / 60
-
 
             val minutes =
                 totalMinutes % 60
 
-
             when {
 
                 days > 0 ->
-
                     "⚠️ Overdue by ${days}d ${hours}h"
 
-
                 hours > 0 ->
-
                     "⚠️ Overdue by ${hours}h ${minutes}m"
 
-
                 minutes > 0 ->
-
                     "⚠️ Overdue by ${minutes}m"
 
-
                 else ->
-
                     "⚠️ Overdue"
             }
-
 
         } else {
 
             /*
-             * =================================================
              * UPCOMING
-             * =================================================
              */
 
             val totalMinutes =
                 difference / (1000 * 60)
 
-
             val days =
                 totalMinutes / (60 * 24)
-
 
             val hours =
                 (totalMinutes % (60 * 24)) / 60
 
-
             val minutes =
                 totalMinutes % 60
-
 
             when {
 
                 days > 0 ->
-
                     "⏳ Due in ${days}d ${hours}h"
 
-
                 hours > 0 ->
-
                     "⏳ Due in ${hours}h ${minutes}m"
 
-
                 minutes > 0 ->
-
                     "⏳ Due in ${minutes}m"
 
-
                 else ->
-
                     "⏳ Due very soon"
             }
         }
@@ -194,6 +154,120 @@ fun calculateCountdown(
     } catch (e: Exception) {
 
         "Unable to calculate time"
+    }
+}
+
+
+/*
+ * ============================================================
+ * CHECK IF TASK IS IN CURRENT WEEK
+ * ============================================================
+ */
+
+fun isTaskInCurrentWeek(
+    taskDate: String
+): Boolean {
+
+    return try {
+
+        val format =
+            SimpleDateFormat(
+                "d/M/yyyy",
+                Locale.getDefault()
+            )
+
+        val taskDateObject =
+            format.parse(taskDate)
+                ?: return false
+
+        val taskCalendar =
+            Calendar.getInstance()
+
+        taskCalendar.time =
+            taskDateObject
+
+        val today =
+            Calendar.getInstance()
+
+        /*
+         * Get first day of current week.
+         * Calendar uses Sunday as first day by default,
+         * so we calculate the week range manually.
+         */
+
+        val startOfWeek =
+            Calendar.getInstance()
+
+        startOfWeek.time =
+            today.time
+
+        startOfWeek.set(
+            Calendar.HOUR_OF_DAY,
+            0
+        )
+
+        startOfWeek.set(
+            Calendar.MINUTE,
+            0
+        )
+
+        startOfWeek.set(
+            Calendar.SECOND,
+            0
+        )
+
+        startOfWeek.set(
+            Calendar.MILLISECOND,
+            0
+        )
+
+        val dayOfWeek =
+            startOfWeek.get(
+                Calendar.DAY_OF_WEEK
+            )
+
+        val daysFromMonday =
+            when (dayOfWeek) {
+
+                Calendar.SUNDAY -> 6
+
+                Calendar.MONDAY -> 0
+
+                Calendar.TUESDAY -> 1
+
+                Calendar.WEDNESDAY -> 2
+
+                Calendar.THURSDAY -> 3
+
+                Calendar.FRIDAY -> 4
+
+                Calendar.SATURDAY -> 5
+
+                else -> 0
+            }
+
+        startOfWeek.add(
+            Calendar.DAY_OF_MONTH,
+            -daysFromMonday
+        )
+
+        val endOfWeek =
+            Calendar.getInstance()
+
+        endOfWeek.time =
+            startOfWeek.time
+
+        endOfWeek.add(
+            Calendar.DAY_OF_MONTH,
+            7
+        )
+
+        taskCalendar.before(endOfWeek) &&
+                !taskCalendar.before(startOfWeek)
+
+    } catch (e: Exception) {
+
+        false
     }
 }
 
@@ -208,7 +282,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var database: TaskDatabase
 
-
     /*
      * NOTIFICATION PERMISSION
      */
@@ -218,13 +291,11 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.RequestPermission()
         ) { }
 
-
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
 
         super.onCreate(savedInstanceState)
-
 
         /*
          * DATABASE
@@ -235,11 +306,8 @@ class MainActivity : ComponentActivity() {
                 applicationContext
             )
 
-
         /*
-         * ====================================================
          * REQUEST NOTIFICATION PERMISSION
-         * ====================================================
          */
 
         if (
@@ -248,30 +316,21 @@ class MainActivity : ComponentActivity() {
         ) {
 
             if (
-
                 ContextCompat.checkSelfPermission(
-
                     this,
-
                     Manifest.permission.POST_NOTIFICATIONS
-
                 ) !=
                 PackageManager.PERMISSION_GRANTED
-
             ) {
 
                 notificationPermissionLauncher.launch(
-
                     Manifest.permission.POST_NOTIFICATIONS
                 )
             }
         }
 
-
         /*
-         * ====================================================
          * COMPOSE
-         * ====================================================
          */
 
         setContent {
@@ -298,15 +357,10 @@ fun StudyMateUI(
     database: TaskDatabase
 ) {
 
-    /*
-     * SHOW WELCOME SCREEN FIRST
-     */
-
     var showWelcomeScreen by remember {
 
         mutableStateOf(true)
     }
-
 
     if (showWelcomeScreen) {
 
@@ -357,27 +411,26 @@ fun WelcomeScreen(
                 Arrangement.Center
         ) {
 
-
             /*
              * APP NAME
              */
 
             Text(
 
-                text = "StudyMate",
+                text =
+                    "StudyMate",
 
-                fontSize = 38.sp,
+                fontSize =
+                    38.sp,
 
                 fontWeight =
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(12.dp)
             )
-
 
             /*
              * SUBTITLE
@@ -388,15 +441,14 @@ fun WelcomeScreen(
                 text =
                     "Your study. Your goals. Your future.",
 
-                fontSize = 16.sp
+                fontSize =
+                    16.sp
             )
-
 
             Spacer(
                 modifier =
                     Modifier.height(60.dp)
             )
-
 
             /*
              * QUOTE
@@ -407,7 +459,8 @@ fun WelcomeScreen(
                 text =
                     "“Small steps. Big results.”",
 
-                fontSize = 24.sp,
+                fontSize =
+                    24.sp,
 
                 fontWeight =
                     FontWeight.Medium,
@@ -416,12 +469,10 @@ fun WelcomeScreen(
                     34.sp
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(60.dp)
             )
-
 
             /*
              * START BUTTON
@@ -442,7 +493,8 @@ fun WelcomeScreen(
                     text =
                         "Start Studying",
 
-                    fontSize = 17.sp
+                    fontSize =
+                        17.sp
                 )
             }
         }
@@ -466,7 +518,6 @@ fun StudyMateHome(
         mutableStateOf(false)
     }
 
-
     var tasks by remember {
 
         mutableStateOf<List<StudyTask>>(
@@ -474,19 +525,14 @@ fun StudyMateHome(
         )
     }
 
-
     val scope =
         rememberCoroutineScope()
-
 
     val context =
         LocalContext.current
 
-
     /*
-     * ========================================================
      * FILTERS
-     * ========================================================
      */
 
     var selectedSubject by remember {
@@ -496,7 +542,6 @@ fun StudyMateHome(
         )
     }
 
-
     var selectedStatus by remember {
 
         mutableStateOf(
@@ -504,23 +549,18 @@ fun StudyMateHome(
         )
     }
 
-
     var showSubjectMenu by remember {
 
         mutableStateOf(false)
     }
-
 
     var showStatusMenu by remember {
 
         mutableStateOf(false)
     }
 
-
     /*
-     * ========================================================
      * LOAD TASKS
-     * ========================================================
      */
 
     LaunchedEffect(Unit) {
@@ -562,11 +602,8 @@ fun StudyMateHome(
             }
     }
 
-
     /*
-     * ========================================================
      * SUBJECTS
-     * ========================================================
      */
 
     val subjects =
@@ -579,16 +616,12 @@ fun StudyMateHome(
                     .distinct()
                     .sorted()
 
-
     /*
-     * ========================================================
      * FILTER TASKS
-     * ========================================================
      */
 
     val filteredTasks =
         tasks.filter { task ->
-
 
             val subjectMatches =
 
@@ -597,7 +630,6 @@ fun StudyMateHome(
 
                         task.subject ==
                         selectedSubject
-
 
             val statusMatches =
 
@@ -608,25 +640,54 @@ fun StudyMateHome(
                     "Completed" ->
                         task.completed
 
-
                     "Pending" ->
                         !task.completed
-
 
                     else ->
                         true
                 }
 
-
             subjectMatches &&
                     statusMatches
         }
 
-
     /*
      * ========================================================
-     * ADD TASK SCREEN
+     * WEEKLY PROGRESS
      * ========================================================
+     */
+
+    val weeklyTasks =
+        tasks.filter { task ->
+
+            isTaskInCurrentWeek(
+                task.date
+            )
+        }
+
+    val weeklyTotal =
+        weeklyTasks.size
+
+    val weeklyCompleted =
+        weeklyTasks.count { task ->
+
+            task.completed
+        }
+
+    val weeklyProgress =
+
+        if (weeklyTotal > 0) {
+
+            weeklyCompleted.toFloat() /
+                    weeklyTotal.toFloat()
+
+        } else {
+
+            0f
+        }
+
+    /*
+     * ADD TASK SCREEN
      */
 
     if (showAddTask) {
@@ -639,13 +700,7 @@ fun StudyMateHome(
                     false
             },
 
-
             onSave = { task ->
-
-
-                /*
-                 * CREATE ENTITY
-                 */
 
                 val entity =
                     TaskEntity(
@@ -672,9 +727,7 @@ fun StudyMateHome(
                             task.completed
                     )
 
-
                 scope.launch {
-
 
                     /*
                      * SAVE TASK
@@ -686,7 +739,6 @@ fun StudyMateHome(
                                 entity
                             )
 
-
                     /*
                      * GET SAVED TASK
                      */
@@ -696,7 +748,6 @@ fun StudyMateHome(
                             .getTaskById(
                                 generatedId.toInt()
                             )
-
 
                     /*
                      * SCHEDULE NOTIFICATION
@@ -714,20 +765,12 @@ fun StudyMateHome(
                     }
                 }
 
-
                 showAddTask =
                     false
             }
         )
 
     } else {
-
-
-        /*
-         * ====================================================
-         * HOME SCREEN
-         * ====================================================
-         */
 
         HomeScreen(
 
@@ -749,10 +792,14 @@ fun StudyMateHome(
             showStatusMenu =
                 showStatusMenu,
 
+            weeklyTotal =
+                weeklyTotal,
 
-            /*
-             * SUBJECT MENU
-             */
+            weeklyCompleted =
+                weeklyCompleted,
+
+            weeklyProgress =
+                weeklyProgress,
 
             onSubjectMenuChange = {
 
@@ -760,21 +807,11 @@ fun StudyMateHome(
                     it
             },
 
-
-            /*
-             * STATUS MENU
-             */
-
             onStatusMenuChange = {
 
                 showStatusMenu =
                     it
             },
-
-
-            /*
-             * SUBJECT SELECTED
-             */
 
             onSubjectSelected = {
 
@@ -785,11 +822,6 @@ fun StudyMateHome(
                     false
             },
 
-
-            /*
-             * STATUS SELECTED
-             */
-
             onStatusSelected = {
 
                 selectedStatus =
@@ -799,28 +831,19 @@ fun StudyMateHome(
                     false
             },
 
-
-            /*
-             * ADD TASK
-             */
-
             onAddTask = {
 
                 showAddTask =
                     true
             },
 
-
             /*
-             * =================================================
              * DELETE TASK
-             * =================================================
              */
 
             onDeleteTask = { task ->
 
                 scope.launch {
-
 
                     /*
                      * CANCEL NOTIFICATION
@@ -832,9 +855,8 @@ fun StudyMateHome(
                         task.id
                     )
 
-
                     /*
-                     * DELETE FROM DATABASE
+                     * DELETE DATABASE TASK
                      */
 
                     val entity =
@@ -865,7 +887,6 @@ fun StudyMateHome(
                                 task.completed
                         )
 
-
                     database.taskDao()
                         .deleteTask(
                             entity
@@ -873,11 +894,8 @@ fun StudyMateHome(
                 }
             },
 
-
             /*
-             * =================================================
              * TOGGLE COMPLETED
-             * =================================================
              */
 
             onToggleCompleted = { task ->
@@ -911,7 +929,6 @@ fun StudyMateHome(
                             completed =
                                 !task.completed
                         )
-
 
                     database.taskDao()
                         .updateTask(
@@ -948,6 +965,12 @@ fun HomeScreen(
 
     showStatusMenu: Boolean,
 
+    weeklyTotal: Int,
+
+    weeklyCompleted: Int,
+
+    weeklyProgress: Float,
+
     onSubjectMenuChange:
         (Boolean) -> Unit,
 
@@ -970,6 +993,18 @@ fun HomeScreen(
         (StudyTask) -> Unit
 ) {
 
+    /*
+     * ANIMATED PROGRESS
+     */
+
+    val animatedProgress by
+    animateFloatAsState(
+        targetValue =
+            weeklyProgress,
+        label =
+            "Weekly Progress"
+    )
+
     Scaffold(
 
         floatingActionButton = {
@@ -982,15 +1017,16 @@ fun HomeScreen(
 
                 Text(
 
-                    text = "+",
+                    text =
+                        "+",
 
-                    fontSize = 24.sp
+                    fontSize =
+                        24.sp
                 )
             }
         }
 
     ) { padding ->
-
 
         Column(
 
@@ -1000,11 +1036,8 @@ fun HomeScreen(
                 .padding(20.dp)
         ) {
 
-
             /*
-             * =================================================
              * HEADER
-             * =================================================
              */
 
             Text(
@@ -1019,12 +1052,10 @@ fun HomeScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             Text(
 
@@ -1035,12 +1066,98 @@ fun HomeScreen(
                     18.sp
             )
 
+            Spacer(
+                modifier =
+                    Modifier.height(20.dp)
+            )
+
+            /*
+             * =================================================
+             * WEEKLY PROGRESS CARD
+             * =================================================
+             */
+
+            Card(
+
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Column(
+
+                    modifier =
+                        Modifier.padding(18.dp)
+                ) {
+
+                    Text(
+
+                        text =
+                            "Weekly Progress",
+
+                        fontSize =
+                            20.sp,
+
+                        fontWeight =
+                            FontWeight.Bold
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(6.dp)
+                    )
+
+                    Text(
+
+                        text =
+                            "$weeklyCompleted / $weeklyTotal tasks completed",
+
+                        fontSize =
+                            15.sp
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(12.dp)
+                    )
+
+                    LinearProgressIndicator(
+
+                        progress = {
+                            animatedProgress
+                        },
+
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(8.dp)
+                    )
+
+                    Text(
+
+                        text =
+                            "${(weeklyProgress * 100).toInt()}%",
+
+                        fontSize =
+                            14.sp,
+
+                        fontWeight =
+                            FontWeight.Bold
+                    )
+                }
+            }
 
             Spacer(
                 modifier =
                     Modifier.height(25.dp)
             )
 
+            /*
+             * TODAY'S TASKS
+             */
 
             Text(
 
@@ -1054,17 +1171,13 @@ fun HomeScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(15.dp)
             )
 
-
             /*
-             * =================================================
              * FILTER ROW
-             * =================================================
              */
 
             Row(
@@ -1076,12 +1189,12 @@ fun HomeScreen(
                     Arrangement.spacedBy(8.dp)
             ) {
 
-
                 /*
                  * SUBJECT FILTER
                  */
 
                 Box(
+
                     modifier =
                         Modifier.weight(1f)
                 ) {
@@ -1108,7 +1221,6 @@ fun HomeScreen(
                                 1
                         )
                     }
-
 
                     DropdownMenu(
 
@@ -1145,12 +1257,12 @@ fun HomeScreen(
                     }
                 }
 
-
                 /*
                  * STATUS FILTER
                  */
 
                 Box(
+
                     modifier =
                         Modifier.weight(1f)
                 ) {
@@ -1173,7 +1285,6 @@ fun HomeScreen(
                         )
                     }
 
-
                     DropdownMenu(
 
                         expanded =
@@ -1187,7 +1298,6 @@ fun HomeScreen(
                         }
                     ) {
 
-
                         DropdownMenuItem(
 
                             text = {
@@ -1205,7 +1315,6 @@ fun HomeScreen(
                             }
                         )
 
-
                         DropdownMenuItem(
 
                             text = {
@@ -1222,7 +1331,6 @@ fun HomeScreen(
                                 )
                             }
                         )
-
 
                         DropdownMenuItem(
 
@@ -1244,17 +1352,13 @@ fun HomeScreen(
                 }
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(20.dp)
             )
 
-
             /*
-             * =================================================
              * TASK LIST
-             * =================================================
              */
 
             if (tasks.isEmpty()) {
@@ -1287,12 +1391,10 @@ fun HomeScreen(
                                 FontWeight.Bold
                         )
 
-
                         Spacer(
                             modifier =
                                 Modifier.height(8.dp)
                         )
-
 
                         Text(
 
@@ -1364,13 +1466,6 @@ fun TaskCard(
     onToggleCompleted: () -> Unit
 ) {
 
-
-    /*
-     * ========================================================
-     * LIVE COUNTDOWN
-     * ========================================================
-     */
-
     var countdown by remember {
 
         mutableStateOf(
@@ -1384,9 +1479,8 @@ fun TaskCard(
         )
     }
 
-
     /*
-     * UPDATE EVERY 30 SECONDS
+     * UPDATE COUNTDOWN EVERY 30 SECONDS
      */
 
     LaunchedEffect(
@@ -1409,16 +1503,12 @@ fun TaskCard(
                     task.time
                 )
 
-
             delay(30_000)
         }
     }
 
-
     /*
-     * ========================================================
      * CARD
-     * ========================================================
      */
 
     Card(
@@ -1433,7 +1523,6 @@ fun TaskCard(
             modifier =
                 Modifier.padding(18.dp)
         ) {
-
 
             /*
              * TITLE
@@ -1451,58 +1540,43 @@ fun TaskCard(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(5.dp)
             )
 
-
             Text(
-
                 text =
                     "Subject: ${task.subject}"
             )
 
-
             Text(
-
                 text =
                     "Date: ${task.date}"
             )
 
-
             Text(
-
                 text =
                     "Time: ${task.time}"
             )
 
-
             Text(
-
                 text =
                     "Priority: ${task.priority}"
             )
 
-
             Text(
-
                 text =
                     "Repeat: ${task.repeat}"
             )
-
 
             Spacer(
                 modifier =
                     Modifier.height(10.dp)
             )
 
-
             /*
-             * =================================================
              * COUNTDOWN
-             * =================================================
              */
 
             if (!task.completed) {
@@ -1520,17 +1594,13 @@ fun TaskCard(
                 )
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
 
-
             /*
-             * =================================================
              * STATUS
-             * =================================================
              */
 
             Text(
@@ -1550,17 +1620,13 @@ fun TaskCard(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(12.dp)
             )
 
-
             /*
-             * =================================================
              * BUTTONS
-             * =================================================
              */
 
             Row(
@@ -1571,7 +1637,6 @@ fun TaskCard(
                 horizontalArrangement =
                     Arrangement.spacedBy(8.dp)
             ) {
-
 
                 Button(
 
@@ -1594,7 +1659,6 @@ fun TaskCard(
                         }
                     )
                 }
-
 
                 OutlinedButton(
 
@@ -1633,18 +1697,15 @@ fun AddTaskScreen(
         (StudyTask) -> Unit
 ) {
 
-
     var title by remember {
 
         mutableStateOf("")
     }
 
-
     var subject by remember {
 
         mutableStateOf("")
     }
-
 
     var selectedDate by remember {
 
@@ -1653,14 +1714,12 @@ fun AddTaskScreen(
         )
     }
 
-
     var selectedTime by remember {
 
         mutableStateOf(
             "Select time"
         )
     }
-
 
     var priority by remember {
 
@@ -1669,14 +1728,12 @@ fun AddTaskScreen(
         )
     }
 
-
     var repeat by remember {
 
         mutableStateOf(
             "None"
         )
     }
-
 
     var showRepeatMenu by remember {
 
@@ -1685,14 +1742,11 @@ fun AddTaskScreen(
         )
     }
 
-
     val context =
         LocalContext.current
 
-
     val calendar =
         Calendar.getInstance()
-
 
     Scaffold(
 
@@ -1706,7 +1760,6 @@ fun AddTaskScreen(
                         "Add Task"
                     )
                 },
-
 
                 navigationIcon = {
 
@@ -1726,7 +1779,6 @@ fun AddTaskScreen(
 
     ) { padding ->
 
-
         Column(
 
             modifier = Modifier
@@ -1734,7 +1786,6 @@ fun AddTaskScreen(
                 .padding(padding)
                 .padding(20.dp)
         ) {
-
 
             /*
              * TITLE
@@ -1749,12 +1800,10 @@ fun AddTaskScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             OutlinedTextField(
 
@@ -1780,12 +1829,10 @@ fun AddTaskScreen(
                     true
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(18.dp)
             )
-
 
             /*
              * SUBJECT
@@ -1800,12 +1847,10 @@ fun AddTaskScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             OutlinedTextField(
 
@@ -1831,12 +1876,10 @@ fun AddTaskScreen(
                     true
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(18.dp)
             )
-
 
             /*
              * DATE
@@ -1851,12 +1894,10 @@ fun AddTaskScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             OutlinedButton(
 
@@ -1897,12 +1938,10 @@ fun AddTaskScreen(
                 )
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(18.dp)
             )
-
 
             /*
              * TIME
@@ -1917,12 +1956,10 @@ fun AddTaskScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             OutlinedButton(
 
@@ -1968,12 +2005,10 @@ fun AddTaskScreen(
                 )
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(18.dp)
             )
-
 
             /*
              * PRIORITY
@@ -1987,7 +2022,6 @@ fun AddTaskScreen(
                 fontWeight =
                     FontWeight.Bold
             )
-
 
             Row(
 
@@ -2010,7 +2044,6 @@ fun AddTaskScreen(
                     }
                 )
 
-
                 PriorityOption(
 
                     text =
@@ -2025,7 +2058,6 @@ fun AddTaskScreen(
                             "Medium"
                     }
                 )
-
 
                 PriorityOption(
 
@@ -2043,12 +2075,10 @@ fun AddTaskScreen(
                 )
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(18.dp)
             )
-
 
             /*
              * REPEAT
@@ -2063,12 +2093,10 @@ fun AddTaskScreen(
                     FontWeight.Bold
             )
 
-
             Spacer(
                 modifier =
                     Modifier.height(8.dp)
             )
-
 
             Box {
 
@@ -2089,7 +2117,6 @@ fun AddTaskScreen(
                     )
                 }
 
-
                 DropdownMenu(
 
                     expanded =
@@ -2101,7 +2128,6 @@ fun AddTaskScreen(
                             false
                     }
                 ) {
-
 
                     /*
                      * NONE
@@ -2126,7 +2152,6 @@ fun AddTaskScreen(
                         }
                     )
 
-
                     /*
                      * DAILY
                      */
@@ -2149,7 +2174,6 @@ fun AddTaskScreen(
                                 false
                         }
                     )
-
 
                     /*
                      * WEEKLY
@@ -2176,12 +2200,10 @@ fun AddTaskScreen(
                 }
             }
 
-
             Spacer(
                 modifier =
                     Modifier.height(25.dp)
             )
-
 
             /*
              * SAVE
@@ -2287,11 +2309,9 @@ fun PriorityOption(
                 onClick
         )
 
-
         Text(
             text
         )
-
 
         Spacer(
             modifier =
