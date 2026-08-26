@@ -1,15 +1,11 @@
 package android.example.myapplication
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,13 +25,18 @@ import android.example.myapplication.data.TaskDatabase
 import android.example.myapplication.data.TaskEntity
 import android.example.myapplication.notification.NotificationScheduler
 import android.example.myapplication.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 
-// ============================================================
-// STUDY TASK MODEL
-// ============================================================
+/*
+ * ============================================================
+ * STUDY TASK
+ * ============================================================
+ */
 
 data class StudyTask(
     val id: Int = 0,
@@ -49,122 +50,236 @@ data class StudyTask(
 )
 
 
-// ============================================================
-// MAIN ACTIVITY
-// ============================================================
+/*
+ * ============================================================
+ * COUNTDOWN FUNCTION
+ * ============================================================
+ */
+
+fun calculateCountdown(
+    date: String,
+    time: String
+): String {
+
+    return try {
+
+        /*
+         * Your date is stored as:
+         *
+         * 26/8/2026
+         *
+         * and time as:
+         *
+         * 18:30
+         */
+
+        val dateFormat =
+            SimpleDateFormat(
+                "d/M/yyyy HH:mm",
+                Locale.getDefault()
+            )
+
+        val dueDate =
+            dateFormat.parse(
+                "$date $time"
+            ) ?: return "Invalid date"
+
+
+        val now =
+            System.currentTimeMillis()
+
+
+        val difference =
+            dueDate.time - now
+
+
+        /*
+         * ====================================================
+         * OVERDUE
+         * ====================================================
+         */
+
+        if (difference <= 0) {
+
+            val overdue =
+                -difference
+
+
+            val totalMinutes =
+                overdue / (1000 * 60)
+
+
+            val days =
+                totalMinutes / (60 * 24)
+
+
+            val hours =
+                (totalMinutes % (60 * 24)) / 60
+
+
+            val minutes =
+                totalMinutes % 60
+
+
+            when {
+
+                days > 0 ->
+
+                    "⚠️ Overdue by ${days}d ${hours}h"
+
+
+                hours > 0 ->
+
+                    "⚠️ Overdue by ${hours}h ${minutes}m"
+
+
+                minutes > 0 ->
+
+                    "⚠️ Overdue by ${minutes}m"
+
+
+                else ->
+
+                    "⚠️ Overdue"
+            }
+
+
+        } else {
+
+            /*
+             * =================================================
+             * UPCOMING
+             * =================================================
+             */
+
+            val totalMinutes =
+                difference / (1000 * 60)
+
+
+            val days =
+                totalMinutes / (60 * 24)
+
+
+            val hours =
+                (totalMinutes % (60 * 24)) / 60
+
+
+            val minutes =
+                totalMinutes % 60
+
+
+            when {
+
+                days > 0 ->
+
+                    "⏳ Due in ${days}d ${hours}h"
+
+
+                hours > 0 ->
+
+                    "⏳ Due in ${hours}h ${minutes}m"
+
+
+                minutes > 0 ->
+
+                    "⏳ Due in ${minutes}m"
+
+
+                else ->
+
+                    "⏳ Due very soon"
+            }
+        }
+
+    } catch (e: Exception) {
+
+        "Unable to calculate time"
+    }
+}
+
+
+/*
+ * ============================================================
+ * MAIN ACTIVITY
+ * ============================================================
+ */
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var database: TaskDatabase
 
 
-    // --------------------------------------------------------
-    // Notification permission launcher
-    // --------------------------------------------------------
+    /*
+     * NOTIFICATION PERMISSION
+     */
 
     private val notificationPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-
-            if (isGranted) {
-                // Notification permission granted.
-            }
-        }
+        ) { }
 
 
-    // --------------------------------------------------------
-    // ON CREATE
-    // --------------------------------------------------------
-
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
         super.onCreate(savedInstanceState)
 
 
-        // Connect to the real Room database
+        /*
+         * DATABASE
+         */
+
         database =
             TaskDatabase.getDatabase(
                 applicationContext
             )
 
 
-        // Request exact alarm permission
-        checkExactAlarmPermission()
+        /*
+         * ====================================================
+         * REQUEST NOTIFICATION PERMISSION
+         * ====================================================
+         */
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.TIRAMISU
+        ) {
+
+            if (
+
+                ContextCompat.checkSelfPermission(
+
+                    this,
+
+                    Manifest.permission.POST_NOTIFICATIONS
+
+                ) !=
+                PackageManager.PERMISSION_GRANTED
+
+            ) {
+
+                notificationPermissionLauncher.launch(
+
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
+        }
 
 
-        // Request notification permission
-        requestNotificationPermission()
+        /*
+         * ====================================================
+         * COMPOSE
+         * ====================================================
+         */
 
-
-        // Start Compose UI
         setContent {
 
             MyApplicationTheme {
 
-                StudyMateUI(database)
-
-            }
-        }
-    }
-
-
-    // --------------------------------------------------------
-    // EXACT ALARM PERMISSION
-    // --------------------------------------------------------
-
-    private fun checkExactAlarmPermission() {
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-
-            val alarmManager =
-                getSystemService(
-                    ALARM_SERVICE
-                ) as AlarmManager
-
-
-            if (!alarmManager.canScheduleExactAlarms()) {
-
-                try {
-
-                    val intent = Intent(
-                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                        Uri.parse(
-                            "package:$packageName"
-                        )
-                    )
-
-                    startActivity(intent)
-
-                } catch (e: Exception) {
-
-                    e.printStackTrace()
-
-                }
-            }
-        }
-    }
-
-
-    // --------------------------------------------------------
-    // NOTIFICATION PERMISSION
-    // --------------------------------------------------------
-
-    private fun requestNotificationPermission() {
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-
-            val permissionGranted =
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-
-
-            if (!permissionGranted) {
-
-                notificationPermissionLauncher.launch(
-                    Manifest.permission.POST_NOTIFICATIONS
+                StudyMateUI(
+                    database
                 )
             }
         }
@@ -172,19 +287,183 @@ class MainActivity : ComponentActivity() {
 }
 
 
-// ============================================================
-// STUDYMATE UI
-// ============================================================
+/*
+ * ============================================================
+ * STUDYMATE UI
+ * ============================================================
+ */
 
 @Composable
 fun StudyMateUI(
     database: TaskDatabase
 ) {
 
+    /*
+     * SHOW WELCOME SCREEN FIRST
+     */
+
+    var showWelcomeScreen by remember {
+
+        mutableStateOf(true)
+    }
+
+
+    if (showWelcomeScreen) {
+
+        WelcomeScreen(
+
+            onStart = {
+
+                showWelcomeScreen =
+                    false
+            }
+        )
+
+    } else {
+
+        StudyMateHome(
+            database
+        )
+    }
+}
+
+
+/*
+ * ============================================================
+ * WELCOME SCREEN
+ * ============================================================
+ */
+
+@Composable
+fun WelcomeScreen(
+    onStart: () -> Unit
+) {
+
+    Surface(
+        modifier =
+            Modifier.fillMaxSize()
+    ) {
+
+        Column(
+
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(30.dp),
+
+            horizontalAlignment =
+                Alignment.CenterHorizontally,
+
+            verticalArrangement =
+                Arrangement.Center
+        ) {
+
+
+            /*
+             * APP NAME
+             */
+
+            Text(
+
+                text = "StudyMate",
+
+                fontSize = 38.sp,
+
+                fontWeight =
+                    FontWeight.Bold
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+
+            /*
+             * SUBTITLE
+             */
+
+            Text(
+
+                text =
+                    "Your study. Your goals. Your future.",
+
+                fontSize = 16.sp
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(60.dp)
+            )
+
+
+            /*
+             * QUOTE
+             */
+
+            Text(
+
+                text =
+                    "“Small steps. Big results.”",
+
+                fontSize = 24.sp,
+
+                fontWeight =
+                    FontWeight.Medium,
+
+                lineHeight =
+                    34.sp
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(60.dp)
+            )
+
+
+            /*
+             * START BUTTON
+             */
+
+            Button(
+
+                onClick =
+                    onStart,
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(55.dp)
+            ) {
+
+                Text(
+
+                    text =
+                        "Start Studying",
+
+                    fontSize = 17.sp
+                )
+            }
+        }
+    }
+}
+
+
+/*
+ * ============================================================
+ * STUDYMATE HOME
+ * ============================================================
+ */
+
+@Composable
+fun StudyMateHome(
+    database: TaskDatabase
+) {
+
     var showAddTask by remember {
 
         mutableStateOf(false)
-
     }
 
 
@@ -193,7 +472,6 @@ fun StudyMateUI(
         mutableStateOf<List<StudyTask>>(
             emptyList()
         )
-
     }
 
 
@@ -205,47 +483,151 @@ fun StudyMateUI(
         LocalContext.current
 
 
-    // --------------------------------------------------------
-    // READ TASKS FROM ROOM DATABASE
-    // --------------------------------------------------------
+    /*
+     * ========================================================
+     * FILTERS
+     * ========================================================
+     */
+
+    var selectedSubject by remember {
+
+        mutableStateOf(
+            "All Subjects"
+        )
+    }
+
+
+    var selectedStatus by remember {
+
+        mutableStateOf(
+            "All"
+        )
+    }
+
+
+    var showSubjectMenu by remember {
+
+        mutableStateOf(false)
+    }
+
+
+    var showStatusMenu by remember {
+
+        mutableStateOf(false)
+    }
+
+
+    /*
+     * ========================================================
+     * LOAD TASKS
+     * ========================================================
+     */
 
     LaunchedEffect(Unit) {
 
-        database
-            .taskDao()
+        database.taskDao()
             .getAllTasks()
             .collect { entityList ->
-
 
                 tasks =
                     entityList.map { entity ->
 
                         StudyTask(
 
-                            id = entity.id,
+                            id =
+                                entity.id,
 
-                            title = entity.title,
+                            title =
+                                entity.title,
 
-                            subject = entity.subject,
+                            subject =
+                                entity.subject,
 
-                            date = entity.date,
+                            date =
+                                entity.date,
 
-                            time = entity.time,
+                            time =
+                                entity.time,
 
-                            priority = entity.priority,
+                            priority =
+                                entity.priority,
 
-                            repeat = entity.repeat,
+                            repeat =
+                                entity.repeat,
 
-                            completed = entity.completed
+                            completed =
+                                entity.completed
                         )
                     }
             }
     }
 
 
-    // --------------------------------------------------------
-    // ADD TASK SCREEN
-    // --------------------------------------------------------
+    /*
+     * ========================================================
+     * SUBJECTS
+     * ========================================================
+     */
+
+    val subjects =
+        listOf("All Subjects") +
+
+                tasks
+                    .map {
+                        it.subject
+                    }
+                    .distinct()
+                    .sorted()
+
+
+    /*
+     * ========================================================
+     * FILTER TASKS
+     * ========================================================
+     */
+
+    val filteredTasks =
+        tasks.filter { task ->
+
+
+            val subjectMatches =
+
+                selectedSubject ==
+                        "All Subjects" ||
+
+                        task.subject ==
+                        selectedSubject
+
+
+            val statusMatches =
+
+                when (
+                    selectedStatus
+                ) {
+
+                    "Completed" ->
+                        task.completed
+
+
+                    "Pending" ->
+                        !task.completed
+
+
+                    else ->
+                        true
+                }
+
+
+            subjectMatches &&
+                    statusMatches
+        }
+
+
+    /*
+     * ========================================================
+     * ADD TASK SCREEN
+     * ========================================================
+     */
 
     if (showAddTask) {
 
@@ -253,63 +635,76 @@ fun StudyMateUI(
 
             onBack = {
 
-                showAddTask = false
-
+                showAddTask =
+                    false
             },
 
 
             onSave = { task ->
 
 
-                // Create Room entity
-                val entity = TaskEntity(
+                /*
+                 * CREATE ENTITY
+                 */
 
-                    title = task.title,
+                val entity =
+                    TaskEntity(
 
-                    subject = task.subject,
+                        title =
+                            task.title,
 
-                    date = task.date,
+                        subject =
+                            task.subject,
 
-                    time = task.time,
+                        date =
+                            task.date,
 
-                    priority = task.priority,
+                        time =
+                            task.time,
 
-                    repeat = task.repeat,
+                        priority =
+                            task.priority,
 
-                    completed = task.completed
-                )
+                        repeat =
+                            task.repeat,
+
+                        completed =
+                            task.completed
+                    )
 
 
                 scope.launch {
 
 
-                    // ------------------------------------------------
-                    // 1. SAVE TASK TO REAL DATABASE
-                    // ------------------------------------------------
+                    /*
+                     * SAVE TASK
+                     */
 
                     val generatedId =
-                        database
-                            .taskDao()
-                            .insertTask(entity)
+                        database.taskDao()
+                            .insertTask(
+                                entity
+                            )
 
 
-                    // ------------------------------------------------
-                    // 2. GET TASK WITH REAL DATABASE ID
-                    // ------------------------------------------------
+                    /*
+                     * GET SAVED TASK
+                     */
 
                     val savedTask =
-                        database
-                            .taskDao()
+                        database.taskDao()
                             .getTaskById(
                                 generatedId.toInt()
                             )
 
 
-                    // ------------------------------------------------
-                    // 3. SCHEDULE NOTIFICATION
-                    // ------------------------------------------------
+                    /*
+                     * SCHEDULE NOTIFICATION
+                     */
 
-                    if (savedTask != null) {
+                    if (
+                        savedTask != null
+                    ) {
 
                         NotificationScheduler(
                             context
@@ -320,41 +715,259 @@ fun StudyMateUI(
                 }
 
 
-                // Return to home screen
-                showAddTask = false
+                showAddTask =
+                    false
             }
         )
-
 
     } else {
 
 
-        // ----------------------------------------------------
-        // HOME SCREEN
-        // ----------------------------------------------------
+        /*
+         * ====================================================
+         * HOME SCREEN
+         * ====================================================
+         */
 
         HomeScreen(
 
-            tasks = tasks,
+            tasks =
+                filteredTasks,
+
+            subjects =
+                subjects,
+
+            selectedSubject =
+                selectedSubject,
+
+            selectedStatus =
+                selectedStatus,
+
+            showSubjectMenu =
+                showSubjectMenu,
+
+            showStatusMenu =
+                showStatusMenu,
+
+
+            /*
+             * SUBJECT MENU
+             */
+
+            onSubjectMenuChange = {
+
+                showSubjectMenu =
+                    it
+            },
+
+
+            /*
+             * STATUS MENU
+             */
+
+            onStatusMenuChange = {
+
+                showStatusMenu =
+                    it
+            },
+
+
+            /*
+             * SUBJECT SELECTED
+             */
+
+            onSubjectSelected = {
+
+                selectedSubject =
+                    it
+
+                showSubjectMenu =
+                    false
+            },
+
+
+            /*
+             * STATUS SELECTED
+             */
+
+            onStatusSelected = {
+
+                selectedStatus =
+                    it
+
+                showStatusMenu =
+                    false
+            },
+
+
+            /*
+             * ADD TASK
+             */
 
             onAddTask = {
 
-                showAddTask = true
+                showAddTask =
+                    true
+            },
 
+
+            /*
+             * =================================================
+             * DELETE TASK
+             * =================================================
+             */
+
+            onDeleteTask = { task ->
+
+                scope.launch {
+
+
+                    /*
+                     * CANCEL NOTIFICATION
+                     */
+
+                    NotificationScheduler(
+                        context
+                    ).cancelNotification(
+                        task.id
+                    )
+
+
+                    /*
+                     * DELETE FROM DATABASE
+                     */
+
+                    val entity =
+                        TaskEntity(
+
+                            id =
+                                task.id,
+
+                            title =
+                                task.title,
+
+                            subject =
+                                task.subject,
+
+                            date =
+                                task.date,
+
+                            time =
+                                task.time,
+
+                            priority =
+                                task.priority,
+
+                            repeat =
+                                task.repeat,
+
+                            completed =
+                                task.completed
+                        )
+
+
+                    database.taskDao()
+                        .deleteTask(
+                            entity
+                        )
+                }
+            },
+
+
+            /*
+             * =================================================
+             * TOGGLE COMPLETED
+             * =================================================
+             */
+
+            onToggleCompleted = { task ->
+
+                scope.launch {
+
+                    val entity =
+                        TaskEntity(
+
+                            id =
+                                task.id,
+
+                            title =
+                                task.title,
+
+                            subject =
+                                task.subject,
+
+                            date =
+                                task.date,
+
+                            time =
+                                task.time,
+
+                            priority =
+                                task.priority,
+
+                            repeat =
+                                task.repeat,
+
+                            completed =
+                                !task.completed
+                        )
+
+
+                    database.taskDao()
+                        .updateTask(
+                            entity
+                        )
+                }
             }
         )
     }
 }
 
 
-// ============================================================
-// HOME SCREEN
-// ============================================================
+/*
+ * ============================================================
+ * HOME SCREEN
+ * ============================================================
+ */
 
+@OptIn(
+    ExperimentalMaterial3Api::class
+)
 @Composable
 fun HomeScreen(
+
     tasks: List<StudyTask>,
-    onAddTask: () -> Unit
+
+    subjects: List<String>,
+
+    selectedSubject: String,
+
+    selectedStatus: String,
+
+    showSubjectMenu: Boolean,
+
+    showStatusMenu: Boolean,
+
+    onSubjectMenuChange:
+        (Boolean) -> Unit,
+
+    onStatusMenuChange:
+        (Boolean) -> Unit,
+
+    onSubjectSelected:
+        (String) -> Unit,
+
+    onStatusSelected:
+        (String) -> Unit,
+
+    onAddTask:
+        () -> Unit,
+
+    onDeleteTask:
+        (StudyTask) -> Unit,
+
+    onToggleCompleted:
+        (StudyTask) -> Unit
 ) {
 
     Scaffold(
@@ -363,8 +976,8 @@ fun HomeScreen(
 
             FloatingActionButton(
 
-                onClick = onAddTask
-
+                onClick =
+                    onAddTask
             ) {
 
                 Text(
@@ -372,7 +985,6 @@ fun HomeScreen(
                     text = "+",
 
                     fontSize = 24.sp
-
                 )
             }
         }
@@ -386,58 +998,266 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(20.dp)
-
         ) {
 
 
+            /*
+             * =================================================
+             * HEADER
+             * =================================================
+             */
+
             Text(
 
-                text = "StudyMate",
+                text =
+                    "StudyMate",
 
-                fontSize = 30.sp,
+                fontSize =
+                    30.sp,
 
-                fontWeight = FontWeight.Bold
-
+                fontWeight =
+                    FontWeight.Bold
             )
 
 
             Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
-
-            Text(
-
-                text = "Good Morning 👋",
-
-                fontSize = 18.sp
-
-            )
-
-
-            Spacer(
-                modifier = Modifier.height(30.dp)
+                modifier =
+                    Modifier.height(8.dp)
             )
 
 
             Text(
 
-                text = "Today's Tasks",
+                text =
+                    "Good Morning 👋",
 
-                fontSize = 22.sp,
-
-                fontWeight = FontWeight.Bold
-
+                fontSize =
+                    18.sp
             )
 
 
             Spacer(
-                modifier = Modifier.height(20.dp)
+                modifier =
+                    Modifier.height(25.dp)
             )
 
+
+            Text(
+
+                text =
+                    "Today's Tasks",
+
+                fontSize =
+                    22.sp,
+
+                fontWeight =
+                    FontWeight.Bold
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(15.dp)
+            )
+
+
+            /*
+             * =================================================
+             * FILTER ROW
+             * =================================================
+             */
+
+            Row(
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
+            ) {
+
+
+                /*
+                 * SUBJECT FILTER
+                 */
+
+                Box(
+                    modifier =
+                        Modifier.weight(1f)
+                ) {
+
+                    OutlinedButton(
+
+                        onClick = {
+
+                            onSubjectMenuChange(
+                                true
+                            )
+                        },
+
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+                        Text(
+
+                            text =
+                                selectedSubject,
+
+                            maxLines =
+                                1
+                        )
+                    }
+
+
+                    DropdownMenu(
+
+                        expanded =
+                            showSubjectMenu,
+
+                        onDismissRequest = {
+
+                            onSubjectMenuChange(
+                                false
+                            )
+                        }
+                    ) {
+
+                        subjects.forEach { subject ->
+
+                            DropdownMenuItem(
+
+                                text = {
+
+                                    Text(
+                                        subject
+                                    )
+                                },
+
+                                onClick = {
+
+                                    onSubjectSelected(
+                                        subject
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+
+                /*
+                 * STATUS FILTER
+                 */
+
+                Box(
+                    modifier =
+                        Modifier.weight(1f)
+                ) {
+
+                    OutlinedButton(
+
+                        onClick = {
+
+                            onStatusMenuChange(
+                                true
+                            )
+                        },
+
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+                        Text(
+                            selectedStatus
+                        )
+                    }
+
+
+                    DropdownMenu(
+
+                        expanded =
+                            showStatusMenu,
+
+                        onDismissRequest = {
+
+                            onStatusMenuChange(
+                                false
+                            )
+                        }
+                    ) {
+
+
+                        DropdownMenuItem(
+
+                            text = {
+
+                                Text(
+                                    "All"
+                                )
+                            },
+
+                            onClick = {
+
+                                onStatusSelected(
+                                    "All"
+                                )
+                            }
+                        )
+
+
+                        DropdownMenuItem(
+
+                            text = {
+
+                                Text(
+                                    "Pending"
+                                )
+                            },
+
+                            onClick = {
+
+                                onStatusSelected(
+                                    "Pending"
+                                )
+                            }
+                        )
+
+
+                        DropdownMenuItem(
+
+                            text = {
+
+                                Text(
+                                    "Completed"
+                                )
+                            },
+
+                            onClick = {
+
+                                onStatusSelected(
+                                    "Completed"
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(20.dp)
+            )
+
+
+            /*
+             * =================================================
+             * TASK LIST
+             * =================================================
+             */
 
             if (tasks.isEmpty()) {
-
 
                 Box(
 
@@ -447,27 +1267,24 @@ fun HomeScreen(
 
                     contentAlignment =
                         Alignment.Center
-
                 ) {
-
 
                     Column(
 
                         horizontalAlignment =
                             Alignment.CenterHorizontally
-
                     ) {
-
 
                         Text(
 
-                            text = "No tasks yet",
+                            text =
+                                "No tasks found",
 
-                            fontSize = 20.sp,
+                            fontSize =
+                                20.sp,
 
                             fontWeight =
                                 FontWeight.Bold
-
                         )
 
 
@@ -480,28 +1297,49 @@ fun HomeScreen(
                         Text(
 
                             text =
-                                "Press + to add your first task"
-
+                                "Try changing the filters or add a new task"
                         )
                     }
                 }
 
-
             } else {
-
 
                 LazyColumn(
 
                     modifier =
                         Modifier.fillMaxWidth()
-
                 ) {
 
+                    items(
 
-                    items(tasks) { task ->
+                        items =
+                            tasks,
 
-                        TaskCard(task)
+                        key = {
+                            it.id
+                        }
 
+                    ) { task ->
+
+                        TaskCard(
+
+                            task =
+                                task,
+
+                            onDelete = {
+
+                                onDeleteTask(
+                                    task
+                                )
+                            },
+
+                            onToggleCompleted = {
+
+                                onToggleCompleted(
+                                    task
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -510,41 +1348,107 @@ fun HomeScreen(
 }
 
 
-// ============================================================
-// TASK CARD
-// ============================================================
+/*
+ * ============================================================
+ * TASK CARD WITH COUNTDOWN
+ * ============================================================
+ */
 
 @Composable
 fun TaskCard(
-    task: StudyTask
+
+    task: StudyTask,
+
+    onDelete: () -> Unit,
+
+    onToggleCompleted: () -> Unit
 ) {
+
+
+    /*
+     * ========================================================
+     * LIVE COUNTDOWN
+     * ========================================================
+     */
+
+    var countdown by remember {
+
+        mutableStateOf(
+
+            calculateCountdown(
+
+                task.date,
+
+                task.time
+            )
+        )
+    }
+
+
+    /*
+     * UPDATE EVERY 30 SECONDS
+     */
+
+    LaunchedEffect(
+
+        task.date,
+
+        task.time,
+
+        task.completed
+    ) {
+
+        while (true) {
+
+            countdown =
+
+                calculateCountdown(
+
+                    task.date,
+
+                    task.time
+                )
+
+
+            delay(30_000)
+        }
+    }
+
+
+    /*
+     * ========================================================
+     * CARD
+     * ========================================================
+     */
 
     Card(
 
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp)
-
     ) {
-
 
         Column(
 
             modifier =
                 Modifier.padding(18.dp)
-
         ) {
 
 
+            /*
+             * TITLE
+             */
+
             Text(
 
-                text = task.title,
+                text =
+                    task.title,
 
-                fontSize = 18.sp,
+                fontSize =
+                    18.sp,
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -555,99 +1459,230 @@ fun TaskCard(
 
 
             Text(
+
                 text =
                     "Subject: ${task.subject}"
             )
 
 
             Text(
+
                 text =
                     "Date: ${task.date}"
             )
 
 
             Text(
+
                 text =
                     "Time: ${task.time}"
             )
 
 
             Text(
+
                 text =
                     "Priority: ${task.priority}"
             )
 
 
             Text(
+
                 text =
                     "Repeat: ${task.repeat}"
             )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(10.dp)
+            )
+
+
+            /*
+             * =================================================
+             * COUNTDOWN
+             * =================================================
+             */
+
+            if (!task.completed) {
+
+                Text(
+
+                    text =
+                        countdown,
+
+                    fontSize =
+                        16.sp,
+
+                    fontWeight =
+                        FontWeight.Bold
+                )
+            }
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
+            )
+
+
+            /*
+             * =================================================
+             * STATUS
+             * =================================================
+             */
+
+            Text(
+
+                text =
+
+                    if (task.completed) {
+
+                        "Status: Completed ✅"
+
+                    } else {
+
+                        "Status: Pending ⏳"
+                    },
+
+                fontWeight =
+                    FontWeight.Bold
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+
+            /*
+             * =================================================
+             * BUTTONS
+             * =================================================
+             */
+
+            Row(
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
+            ) {
+
+
+                Button(
+
+                    onClick =
+                        onToggleCompleted,
+
+                    modifier =
+                        Modifier.weight(1f)
+                ) {
+
+                    Text(
+
+                        if (task.completed) {
+
+                            "Mark Pending"
+
+                        } else {
+
+                            "Complete"
+                        }
+                    )
+                }
+
+
+                OutlinedButton(
+
+                    onClick =
+                        onDelete,
+
+                    modifier =
+                        Modifier.weight(1f)
+                ) {
+
+                    Text(
+                        "Delete"
+                    )
+                }
+            }
         }
     }
 }
 
 
-// ============================================================
-// ADD TASK SCREEN
-// ============================================================
+/*
+ * ============================================================
+ * ADD TASK SCREEN
+ * ============================================================
+ */
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalMaterial3Api::class
+)
 @Composable
 fun AddTaskScreen(
 
     onBack: () -> Unit,
 
-    onSave: (StudyTask) -> Unit
-
+    onSave:
+        (StudyTask) -> Unit
 ) {
 
 
     var title by remember {
 
         mutableStateOf("")
-
     }
 
 
     var subject by remember {
 
         mutableStateOf("")
-
     }
 
 
     var selectedDate by remember {
 
-        mutableStateOf("Select date")
-
+        mutableStateOf(
+            "Select date"
+        )
     }
 
 
     var selectedTime by remember {
 
-        mutableStateOf("Select time")
-
+        mutableStateOf(
+            "Select time"
+        )
     }
 
 
     var priority by remember {
 
-        mutableStateOf("Medium")
-
+        mutableStateOf(
+            "Medium"
+        )
     }
 
 
     var repeat by remember {
 
-        mutableStateOf("None")
-
+        mutableStateOf(
+            "None"
+        )
     }
 
 
     var showRepeatMenu by remember {
 
-        mutableStateOf(false)
-
+        mutableStateOf(
+            false
+        )
     }
 
 
@@ -667,8 +1702,9 @@ fun AddTaskScreen(
 
                 title = {
 
-                    Text("Add Task")
-
+                    Text(
+                        "Add Task"
+                    )
                 },
 
 
@@ -676,12 +1712,13 @@ fun AddTaskScreen(
 
                     TextButton(
 
-                        onClick = onBack
-
+                        onClick =
+                            onBack
                     ) {
 
-                        Text("Back")
-
+                        Text(
+                            "Back"
+                        )
                     }
                 }
             )
@@ -696,21 +1733,20 @@ fun AddTaskScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(20.dp)
-
         ) {
 
 
-            // ------------------------------------------------
-            // TITLE
-            // ------------------------------------------------
+            /*
+             * TITLE
+             */
 
             Text(
 
-                text = "Task Title",
+                text =
+                    "Task Title",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -722,12 +1758,12 @@ fun AddTaskScreen(
 
             OutlinedTextField(
 
-                value = title,
+                value =
+                    title,
 
                 onValueChange = {
 
                     title = it
-
                 },
 
                 modifier =
@@ -738,11 +1774,10 @@ fun AddTaskScreen(
                     Text(
                         "Example: Study CCNA"
                     )
-
                 },
 
-                singleLine = true
-
+                singleLine =
+                    true
             )
 
 
@@ -752,17 +1787,17 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // SUBJECT
-            // ------------------------------------------------
+            /*
+             * SUBJECT
+             */
 
             Text(
 
-                text = "Subject",
+                text =
+                    "Subject",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -774,12 +1809,12 @@ fun AddTaskScreen(
 
             OutlinedTextField(
 
-                value = subject,
+                value =
+                    subject,
 
                 onValueChange = {
 
                     subject = it
-
                 },
 
                 modifier =
@@ -790,11 +1825,10 @@ fun AddTaskScreen(
                     Text(
                         "Example: Networking"
                     )
-
                 },
 
-                singleLine = true
-
+                singleLine =
+                    true
             )
 
 
@@ -804,17 +1838,17 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // DATE
-            // ------------------------------------------------
+            /*
+             * DATE
+             */
 
             Text(
 
-                text = "Due Date",
+                text =
+                    "Due Date",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -835,8 +1869,8 @@ fun AddTaskScreen(
                         { _, year, month, day ->
 
                             selectedDate =
-                                "$day/${month + 1}/$year"
 
+                                "$day/${month + 1}/$year"
                         },
 
                         calendar.get(
@@ -852,16 +1886,15 @@ fun AddTaskScreen(
                         )
 
                     ).show()
-
                 },
 
                 modifier =
                     Modifier.fillMaxWidth()
-
             ) {
 
-                Text(selectedDate)
-
+                Text(
+                    selectedDate
+                )
             }
 
 
@@ -871,17 +1904,17 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // TIME
-            // ------------------------------------------------
+            /*
+             * TIME
+             */
 
             Text(
 
-                text = "Due Time",
+                text =
+                    "Due Time",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -902,12 +1935,15 @@ fun AddTaskScreen(
                         { _, hour, minute ->
 
                             selectedTime =
+
                                 String.format(
+
                                     "%02d:%02d",
+
                                     hour,
+
                                     minute
                                 )
-
                         },
 
                         calendar.get(
@@ -921,16 +1957,15 @@ fun AddTaskScreen(
                         true
 
                     ).show()
-
                 },
 
                 modifier =
                     Modifier.fillMaxWidth()
-
             ) {
 
-                Text(selectedTime)
-
+                Text(
+                    selectedTime
+                )
             }
 
 
@@ -940,17 +1975,17 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // PRIORITY
-            // ------------------------------------------------
+            /*
+             * PRIORITY
+             */
 
             Text(
 
-                text = "Priority",
+                text =
+                    "Priority",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -958,51 +1993,52 @@ fun AddTaskScreen(
 
                 verticalAlignment =
                     Alignment.CenterVertically
-
             ) {
-
 
                 PriorityOption(
 
-                    text = "Low",
+                    text =
+                        "Low",
 
                     selected =
                         priority == "Low",
 
                     onClick = {
 
-                        priority = "Low"
-
+                        priority =
+                            "Low"
                     }
                 )
 
 
                 PriorityOption(
 
-                    text = "Medium",
+                    text =
+                        "Medium",
 
                     selected =
                         priority == "Medium",
 
                     onClick = {
 
-                        priority = "Medium"
-
+                        priority =
+                            "Medium"
                     }
                 )
 
 
                 PriorityOption(
 
-                    text = "High",
+                    text =
+                        "High",
 
                     selected =
                         priority == "High",
 
                     onClick = {
 
-                        priority = "High"
-
+                        priority =
+                            "High"
                     }
                 )
             }
@@ -1014,17 +2050,17 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // REPEAT
-            // ------------------------------------------------
+            /*
+             * REPEAT
+             */
 
             Text(
 
-                text = "Repeat",
+                text =
+                    "Repeat",
 
                 fontWeight =
                     FontWeight.Bold
-
             )
 
 
@@ -1036,22 +2072,21 @@ fun AddTaskScreen(
 
             Box {
 
-
                 OutlinedButton(
 
                     onClick = {
 
-                        showRepeatMenu = true
-
+                        showRepeatMenu =
+                            true
                     },
 
                     modifier =
                         Modifier.fillMaxWidth()
-
                 ) {
 
-                    Text(repeat)
-
+                    Text(
+                        repeat
+                    )
                 }
 
 
@@ -1062,63 +2097,80 @@ fun AddTaskScreen(
 
                     onDismissRequest = {
 
-                        showRepeatMenu = false
-
+                        showRepeatMenu =
+                            false
                     }
-
                 ) {
 
 
+                    /*
+                     * NONE
+                     */
+
                     DropdownMenuItem(
 
                         text = {
 
-                            Text("None")
-
+                            Text(
+                                "None"
+                            )
                         },
 
                         onClick = {
 
-                            repeat = "None"
+                            repeat =
+                                "None"
 
-                            showRepeatMenu = false
-
+                            showRepeatMenu =
+                                false
                         }
                     )
 
 
+                    /*
+                     * DAILY
+                     */
+
                     DropdownMenuItem(
 
                         text = {
 
-                            Text("Daily")
-
+                            Text(
+                                "Daily"
+                            )
                         },
 
                         onClick = {
 
-                            repeat = "Daily"
+                            repeat =
+                                "Daily"
 
-                            showRepeatMenu = false
-
+                            showRepeatMenu =
+                                false
                         }
                     )
 
 
+                    /*
+                     * WEEKLY
+                     */
+
                     DropdownMenuItem(
 
                         text = {
 
-                            Text("Weekly")
-
+                            Text(
+                                "Weekly"
+                            )
                         },
 
                         onClick = {
 
-                            repeat = "Weekly"
+                            repeat =
+                                "Weekly"
 
-                            showRepeatMenu = false
-
+                            showRepeatMenu =
+                                false
                         }
                     )
                 }
@@ -1131,9 +2183,9 @@ fun AddTaskScreen(
             )
 
 
-            // ------------------------------------------------
-            // SAVE BUTTON
-            // ------------------------------------------------
+            /*
+             * SAVE
+             */
 
             Button(
 
@@ -1150,35 +2202,36 @@ fun AddTaskScreen(
 
                         selectedTime !=
                         "Select time"
-
                     ) {
-
 
                         onSave(
 
                             StudyTask(
 
-                                title = title,
+                                title =
+                                    title,
 
-                                subject = subject,
+                                subject =
+                                    subject,
 
-                                date = selectedDate,
+                                date =
+                                    selectedDate,
 
-                                time = selectedTime,
+                                time =
+                                    selectedTime,
 
-                                priority = priority,
+                                priority =
+                                    priority,
 
-                                repeat = repeat
-
+                                repeat =
+                                    repeat
                             )
                         )
                     }
                 },
 
-
                 modifier =
                     Modifier.fillMaxWidth(),
-
 
                 enabled =
 
@@ -1194,17 +2247,20 @@ fun AddTaskScreen(
 
             ) {
 
-                Text("Save Task")
-
+                Text(
+                    "Save Task"
+                )
             }
         }
     }
 }
 
 
-// ============================================================
-// PRIORITY OPTION
-// ============================================================
+/*
+ * ============================================================
+ * PRIORITY OPTION
+ * ============================================================
+ */
 
 @Composable
 fun PriorityOption(
@@ -1214,35 +2270,32 @@ fun PriorityOption(
     selected: Boolean,
 
     onClick: () -> Unit
-
 ) {
-
 
     Row(
 
         verticalAlignment =
             Alignment.CenterVertically
-
     ) {
-
 
         RadioButton(
 
-            selected = selected,
+            selected =
+                selected,
 
-            onClick = onClick
-
+            onClick =
+                onClick
         )
 
 
-        Text(text)
+        Text(
+            text
+        )
 
 
         Spacer(
-
             modifier =
                 Modifier.width(5.dp)
-
         )
     }
 }
