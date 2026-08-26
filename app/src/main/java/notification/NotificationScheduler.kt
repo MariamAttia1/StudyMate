@@ -14,17 +14,18 @@ class NotificationScheduler(
 ) {
 
     private val alarmManager =
-        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        context.getSystemService(
+            Context.ALARM_SERVICE
+        ) as AlarmManager
+
+    /*
+     * NORMAL TASK NOTIFICATION
+     */
 
     fun scheduleNotification(task: TaskEntity) {
 
         try {
 
-            // Convert:
-            // date = 26/8/2026
-            // time = 18:30
-            //
-            // into a real date/time.
             val dateTimeString =
                 "${task.date} ${task.time}"
 
@@ -37,14 +38,18 @@ class NotificationScheduler(
             formatter.isLenient = false
 
             val parsedDate =
-                formatter.parse(dateTimeString)
-                    ?: return
+                formatter.parse(
+                    dateTimeString
+                ) ?: return
 
             val triggerTime =
                 parsedDate.time
 
-            // Don't schedule if the time has already passed.
-            if (triggerTime <= System.currentTimeMillis()) {
+            // Don't schedule past notifications.
+            if (
+                triggerTime <=
+                System.currentTimeMillis()
+            ) {
                 return
             }
 
@@ -79,35 +84,10 @@ class NotificationScheduler(
                             PendingIntent.FLAG_IMMUTABLE
                 )
 
-            // Schedule exact alarm.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-
-                if (alarmManager.canScheduleExactAlarms()) {
-
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-
-                } else {
-
-                    // Fallback if exact alarms are not allowed.
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-                }
-
-            } else {
-
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            }
+            scheduleAlarm(
+                triggerTime,
+                pendingIntent
+            )
 
         } catch (e: Exception) {
 
@@ -115,7 +95,124 @@ class NotificationScheduler(
         }
     }
 
-    fun cancelNotification(taskId: Int) {
+    /*
+     * SNOOZE NOTIFICATION
+     *
+     * Schedules the notification
+     * 10 minutes from now.
+     */
+
+    fun scheduleSnooze(
+        taskId: Int,
+        title: String,
+        subject: String
+    ) {
+
+        try {
+
+            val snoozeTime =
+                System.currentTimeMillis() +
+                        (10 * 60 * 1000)
+
+            val intent =
+                Intent(
+                    context,
+                    TaskAlarmReceiver::class.java
+                ).apply {
+
+                    putExtra(
+                        EXTRA_TASK_ID,
+                        taskId
+                    )
+
+                    putExtra(
+                        EXTRA_TITLE,
+                        title
+                    )
+
+                    putExtra(
+                        EXTRA_SUBJECT,
+                        subject
+                    )
+                }
+
+            /*
+             * Use a different request code
+             * so the snooze alarm doesn't
+             * accidentally conflict with
+             * the original alarm.
+             */
+
+            val pendingIntent =
+                PendingIntent.getBroadcast(
+                    context,
+                    taskId + SNOOZE_REQUEST_OFFSET,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or
+                            PendingIntent.FLAG_IMMUTABLE
+                )
+
+            scheduleAlarm(
+                snoozeTime,
+                pendingIntent
+            )
+
+        } catch (e: Exception) {
+
+            e.printStackTrace()
+        }
+    }
+
+    /*
+     * COMMON ALARM FUNCTION
+     */
+
+    private fun scheduleAlarm(
+        triggerTime: Long,
+        pendingIntent: PendingIntent
+    ) {
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.S
+        ) {
+
+            if (
+                alarmManager.canScheduleExactAlarms()
+            ) {
+
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+
+            } else {
+
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+
+        } else {
+
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        }
+    }
+
+    /*
+     * CANCEL NORMAL NOTIFICATION
+     */
+
+    fun cancelNotification(
+        taskId: Int
+    ) {
 
         val intent =
             Intent(
@@ -135,6 +232,24 @@ class NotificationScheduler(
         alarmManager.cancel(
             pendingIntent
         )
+
+        /*
+         * Also cancel a possible
+         * snoozed alarm.
+         */
+
+        val snoozePendingIntent =
+            PendingIntent.getBroadcast(
+                context,
+                taskId + SNOOZE_REQUEST_OFFSET,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or
+                        PendingIntent.FLAG_IMMUTABLE
+            )
+
+        alarmManager.cancel(
+            snoozePendingIntent
+        )
     }
 
     companion object {
@@ -147,5 +262,8 @@ class NotificationScheduler(
 
         const val EXTRA_SUBJECT =
             "subject"
+
+        const val SNOOZE_REQUEST_OFFSET =
+            50000
     }
 }
