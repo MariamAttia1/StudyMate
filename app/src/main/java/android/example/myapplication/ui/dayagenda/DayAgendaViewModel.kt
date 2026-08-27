@@ -1,8 +1,8 @@
 package android.example.myapplication.ui.dayagenda
 
 import androidx.lifecycle.ViewModel
-import android.example.myapplication.data.TaskRepository
-import android.example.myapplication.data.TaskEntity
+import data.TaskRepository
+import data.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
 class DayAgendaViewModel(private val repository: TaskRepository) : ViewModel() {

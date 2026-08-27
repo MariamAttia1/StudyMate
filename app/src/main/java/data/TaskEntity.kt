@@ -1,4 +1,4 @@
-package android.example.myapplication.data
+package data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -20,6 +20,8 @@ data class TaskEntity(
     val priority: String,
 
     val repeat: String,
+
+    val repeatType: RepeatType = RepeatType.NONE,
 
     val completed: Boolean = false
 )

@@ -12,8 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.example.myapplication.data.TaskDatabase
-import android.example.myapplication.data.TaskRepository
+import data.TaskDatabase
+import data.TaskRepository
 import android.example.myapplication.ui.theme.MyApplicationTheme
 import android.example.myapplication.StudyTask
 import android.example.myapplication.TaskCard

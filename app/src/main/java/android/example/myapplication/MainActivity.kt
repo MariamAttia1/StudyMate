@@ -22,9 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import android.example.myapplication.data.TaskDatabase
-import android.example.myapplication.data.TaskEntity
-import android.example.myapplication.notification.NotificationScheduler
+import data.TaskDatabase
+import data.TaskEntity
+import data.RepeatType
+import notification.NotificationScheduler
 import android.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -722,6 +723,12 @@ fun StudyMateHome(
 
                         repeat =
                             task.repeat,
+
+                        repeatType = when(task.repeat) {
+                            "Daily" -> RepeatType.DAILY
+                            "Weekly" -> RepeatType.WEEKLY
+                            else -> RepeatType.NONE
+                        },
 
                         completed =
                             task.completed

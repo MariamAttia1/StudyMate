@@ -1,10 +1,11 @@
-package android.example.myapplication.notification
+package notification
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
-import android.example.myapplication.data.TaskDatabase
+import data.TaskDatabase
+import data.TaskRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,13 +50,17 @@ class NotificationActionReceiver :
                     context.applicationContext
                 )
 
+            val repository =
+                TaskRepository(
+                    database.taskDao()
+                )
+
             CoroutineScope(
                 Dispatchers.IO
             ).launch {
 
                 val task =
-                    database.taskDao()
-                        .getTaskById(taskId)
+                    repository.getTaskById(taskId)
 
                 if (task != null) {
 
@@ -64,10 +69,9 @@ class NotificationActionReceiver :
                             completed = true
                         )
 
-                    database.taskDao()
-                        .updateTask(
-                            completedTask
-                        )
+                    repository.update(
+                        completedTask
+                    )
                 }
             }
         }

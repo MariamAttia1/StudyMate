@@ -15,9 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.example.myapplication.data.TaskDatabase
-import android.example.myapplication.data.TaskRepository
-import android.example.myapplication.data.TaskEntity
+import data.TaskDatabase
+import data.TaskRepository
+import data.TaskEntity
 import android.example.myapplication.ui.theme.MyApplicationTheme
 import android.example.myapplication.ui.dayagenda.DayAgendaActivity
 import android.content.Intent

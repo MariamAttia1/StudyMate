@@ -1,12 +1,15 @@
-package android.example.myapplication.notification
+package notification
 
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.example.myapplication.data.TaskEntity
+import data.TaskEntity
+import data.TaskRepository
+import data.RepeatType
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 class NotificationScheduler(
@@ -250,6 +253,81 @@ class NotificationScheduler(
         alarmManager.cancel(
             snoozePendingIntent
         )
+    }
+
+    /*
+     * RESCHEDULE REPEATING TASK
+     */
+
+    suspend fun rescheduleRepeatingTask(
+        task: TaskEntity,
+        repository: TaskRepository
+    ) {
+
+        if (task.repeat == "None" && task.repeatType == RepeatType.NONE) return
+
+        try {
+            
+            val dateFormat =
+                SimpleDateFormat(
+                    "d/M/yyyy",
+                    Locale.getDefault()
+                )
+
+            val calendar =
+                Calendar.getInstance()
+
+            calendar.time =
+                dateFormat.parse(task.date) ?: return
+
+            /*
+             * ADD TIME BASED ON REPEAT
+             */
+
+            val currentRepeat = if (task.repeatType != RepeatType.NONE) {
+                task.repeatType.name.lowercase().replaceFirstChar { it.uppercase() }
+            } else {
+                task.repeat
+            }
+
+            if (currentRepeat == "Daily") {
+
+                calendar.add(
+                    Calendar.DAY_OF_YEAR,
+                    1
+                )
+
+            } else if (currentRepeat == "Weekly") {
+
+                calendar.add(
+                    Calendar.WEEK_OF_YEAR,
+                    1
+                )
+            }
+
+            val nextDate =
+                dateFormat.format(
+                    calendar.time
+                )
+
+            /*
+             * UPDATE TASK IN DATABASE
+             * AND SCHEDULE NEXT
+             */
+
+            val nextTask =
+                task.copy(
+                    date = nextDate,
+                    completed = false
+                )
+
+            repository.update(nextTask)
+
+            scheduleNotification(nextTask)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     companion object {

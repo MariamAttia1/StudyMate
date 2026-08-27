@@ -20,12 +20,12 @@
 
         <!-- Task notification receiver -->
         <receiver
-            android:name=".notification.TaskAlarmReceiver"
+            android:name="notification.TaskAlarmReceiver"
             android:exported="false" />
 
         <!-- Notification action receiver -->
         <receiver
-            android:name=".notification.NotificationActionReceiver"
+            android:name="notification.NotificationActionReceiver"
             android:exported="false" />
 
         <!-- Main Activity -->
