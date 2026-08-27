@@ -1005,24 +1005,37 @@ fun HomeScreen(
             "Weekly Progress"
     )
 
+    val context = LocalContext.current
+
     Scaffold(
 
         floatingActionButton = {
 
-            FloatingActionButton(
+            Column(horizontalAlignment = Alignment.End) {
+                FloatingActionButton(
+                    onClick = {
+                        val intent = android.content.Intent(context, android.example.myapplication.ui.calendar.CalendarActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text("📅")
+                }
 
-                onClick =
+                FloatingActionButton(
+                    onClick =
                     onAddTask
-            ) {
+                ) {
 
-                Text(
+                    Text(
 
-                    text =
+                        text =
                         "+",
 
-                    fontSize =
+                        fontSize =
                         24.sp
-                )
+                    )
+                }
             }
         }
 

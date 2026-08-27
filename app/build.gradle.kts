@@ -14,7 +14,7 @@ android {
     defaultConfig {
         applicationId = "android.example.myapplication"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -37,6 +37,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -45,6 +46,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(libs.androidx.core.ktx)
 
@@ -62,6 +64,7 @@ dependencies {
 
     implementation(libs.androidx.compose.material3)
 
+    implementation(libs.calendar.compose)
 
     // Room Database
 

@@ -42,6 +42,18 @@
 
         </activity>
 
+        <activity
+            android:name=".ui.calendar.CalendarActivity"
+            android:exported="false"
+            android:label="Calendar"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name=".ui.dayagenda.DayAgendaActivity"
+            android:exported="false"
+            android:label="Day Agenda"
+            android:theme="@style/Theme.MyApplication" />
+
     </application>
 
 </manifest>
