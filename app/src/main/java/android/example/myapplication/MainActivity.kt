@@ -275,6 +275,72 @@ fun isTaskInCurrentWeek(
 
 /*
  * ============================================================
+ * CHECK IF PREVIOUS OCCURRENCE WAS IN CURRENT WEEK
+ * ============================================================
+ */
+
+fun wasTaskInCurrentWeek(
+    taskDate: String,
+    repeat: String
+): Boolean {
+
+    if (repeat == "None") return false
+
+    return try {
+
+        val format =
+            SimpleDateFormat(
+                "d/M/yyyy",
+                Locale.getDefault()
+            )
+
+        val taskDateObject =
+            format.parse(taskDate)
+                ?: return false
+
+        val calendar =
+            Calendar.getInstance()
+
+        calendar.time =
+            taskDateObject
+
+        /*
+         * Subtract period to get previous date
+         */
+
+        if (repeat == "Daily") {
+
+            calendar.add(
+                Calendar.DAY_OF_YEAR,
+                -1
+            )
+
+        } else if (repeat == "Weekly") {
+
+            calendar.add(
+                Calendar.WEEK_OF_YEAR,
+                -1
+            )
+        }
+
+        val previousDate =
+            format.format(
+                calendar.time
+            )
+
+        isTaskInCurrentWeek(
+            previousDate
+        )
+
+    } catch (e: Exception) {
+
+        false
+    }
+}
+
+
+/*
+ * ============================================================
  * MAIN ACTIVITY
  * ============================================================
  */
@@ -663,7 +729,11 @@ fun StudyMateHome(
 
             isTaskInCurrentWeek(
                 task.date
-            )
+            ) ||
+                    wasTaskInCurrentWeek(
+                        task.date,
+                        task.repeat
+                    )
         }
 
     val weeklyTotal =
@@ -1182,7 +1252,7 @@ fun HomeScreen(
             Text(
 
                 text =
-                    "Today's Tasks",
+                    "All Tasks",
 
                 fontSize =
                     22.sp,
