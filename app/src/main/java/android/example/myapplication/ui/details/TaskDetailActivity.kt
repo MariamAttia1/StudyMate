@@ -2,11 +2,13 @@ package android.example.myapplication.ui.details
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
@@ -45,6 +47,9 @@ class TaskDetailActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(taskId: Int, viewModel: TaskDetailViewModel, onBack: () -> Unit) {
+    BackHandler {
+        onBack()
+    }
     val task by viewModel.getTask(taskId).collectAsState(initial = null)
     
     Scaffold(
@@ -55,7 +60,7 @@ fun TaskDetailScreen(taskId: Int, viewModel: TaskDetailViewModel, onBack: () -> 
                 title = { Text("Task Details", style = Typography.titleLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Back") // Placeholder
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {

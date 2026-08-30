@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -20,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
@@ -463,7 +465,10 @@ fun StudyMateUI(
     } else {
 
         StudyMateHome(
-            database
+            database,
+            onBack = {
+                showWelcomeScreen = true
+            }
         )
     }
 }
@@ -597,8 +602,13 @@ fun WelcomeScreen(
 
 @Composable
 fun StudyMateHome(
-    database: TaskDatabase
+    database: TaskDatabase,
+    onBack: () -> Unit
 ) {
+
+    BackHandler {
+        onBack()
+    }
 
     var showAddTask by remember {
 
@@ -1814,6 +1824,10 @@ fun AddTaskScreen(
         (StudyTask) -> Unit
 ) {
 
+    BackHandler {
+        onBack()
+    }
+
     var title by remember { mutableStateOf("") }
     var subject by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf("Select date") }
@@ -1838,7 +1852,7 @@ fun AddTaskScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Back", modifier = Modifier.size(24.dp)) // Using MoreVert as a placeholder for back arrow if needed, but standard Icons.Default.ArrowBack is better
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {

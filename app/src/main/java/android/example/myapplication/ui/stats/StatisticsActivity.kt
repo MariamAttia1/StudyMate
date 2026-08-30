@@ -2,6 +2,7 @@ package android.example.myapplication.ui.stats
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
@@ -54,6 +56,9 @@ class StatisticsActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel, onNavClick: (Int) -> Unit) {
+    BackHandler {
+        onNavClick(0)
+    }
     val stats by viewModel.stats.collectAsState(initial = TaskStats(0, 0, 0, 0f))
     var selectedPeriod by remember { mutableStateOf("Week") }
 
@@ -62,7 +67,12 @@ fun StatisticsScreen(viewModel: StatisticsViewModel, onNavClick: (Int) -> Unit) 
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBackground),
-                title = { Text("Statistics", style = Typography.titleLarge) }
+                title = { Text("Statistics", style = Typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = { onNavClick(0) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         },
         bottomBar = {

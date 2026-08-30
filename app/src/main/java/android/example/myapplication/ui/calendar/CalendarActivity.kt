@@ -2,6 +2,7 @@ package android.example.myapplication.ui.calendar
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +38,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -69,6 +71,9 @@ class CalendarActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(viewModel: CalendarViewModel, onBack: () -> Unit) {
+    BackHandler {
+        onBack()
+    }
     val tasks by viewModel.allTasks.collectAsState(initial = emptyList())
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val currentMonth = remember { YearMonth.now() }
@@ -95,7 +100,7 @@ fun CalendarScreen(viewModel: CalendarViewModel, onBack: () -> Unit) {
                 title = { Text("Calendar", style = Typography.titleLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Back") // Placeholder for back
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
