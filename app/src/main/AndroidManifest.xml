@@ -54,6 +54,18 @@
             android:label="Day Agenda"
             android:theme="@style/Theme.MyApplication" />
 
+        <activity
+            android:name=".ui.stats.StatisticsActivity"
+            android:exported="false"
+            android:label="Statistics"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name=".ui.details.TaskDetailActivity"
+            android:exported="false"
+            android:label="Task Details"
+            android:theme="@style/Theme.MyApplication" />
+
     </application>
 
 </manifest>

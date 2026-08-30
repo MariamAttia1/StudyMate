@@ -1,20 +1,22 @@
-package android.example.myapplication.ui.calendar
+package android.example.myapplication.ui.details
 
 import androidx.lifecycle.ViewModel
 import data.TaskRepository
 import data.TaskEntity
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
-class CalendarViewModel(private val repository: TaskRepository) : ViewModel() {
-    val allTasks: Flow<List<TaskEntity>> = repository.allTasks
+class TaskDetailViewModel(private val repository: TaskRepository) : ViewModel() {
+    
+    fun getTask(id: Int): Flow<TaskEntity?> = flow {
+        emit(repository.getTaskById(id))
+    }
 
-    fun updateTask(task: TaskEntity) {
+    fun markComplete(task: TaskEntity) {
         viewModelScope.launch {
-            repository.update(task)
+            repository.update(task.copy(completed = true))
         }
     }
 
