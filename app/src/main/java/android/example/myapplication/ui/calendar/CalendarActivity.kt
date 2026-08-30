@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -91,20 +93,29 @@ fun CalendarScreen(viewModel: CalendarViewModel, onBack: () -> Unit) {
     
     val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf(1) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("Close")
+                }
+            },
+            title = { Text("About StudyMate") },
+            text = {
+                Column {
+                    Text("Version: 1.0.0")
+                    Spacer(Modifier.height(8.dp))
+                    Text("StudyMate is your personal assistant to manage study tasks efficiently. Track your progress, schedule reminders, and achieve your goals!")
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = AppBackground,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBackground),
-                title = { Text("Calendar", style = Typography.titleLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
@@ -134,13 +145,16 @@ fun CalendarScreen(viewModel: CalendarViewModel, onBack: () -> Unit) {
                         val intent = android.content.Intent(context, android.example.myapplication.ui.stats.StatisticsActivity::class.java)
                         context.startActivity(intent)
                     },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
                     label = { Text("Stats") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                    onClick = { 
+                        selectedTab = 3
+                        showAboutDialog = true
+                    },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                     label = { Text("More") }
                 )
             }

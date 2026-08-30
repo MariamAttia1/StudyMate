@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
@@ -61,6 +63,26 @@ fun StatisticsScreen(viewModel: StatisticsViewModel, onNavClick: (Int) -> Unit) 
     }
     val stats by viewModel.stats.collectAsState(initial = TaskStats(0, 0, 0, 0f))
     var selectedPeriod by remember { mutableStateOf("Week") }
+    var showAboutDialog by remember { mutableStateOf(false) }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("Close")
+                }
+            },
+            title = { Text("About StudyMate") },
+            text = {
+                Column {
+                    Text("Version: 1.0.0")
+                    Spacer(Modifier.height(8.dp))
+                    Text("StudyMate is your personal assistant to manage study tasks efficiently. Track your progress, schedule reminders, and achieve your goals!")
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = AppBackground,
@@ -92,7 +114,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel, onNavClick: (Int) -> Unit) 
                 NavigationBarItem(
                     selected = true,
                     onClick = { },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) }, // Stats icon placeholder
+                    icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
                     label = { Text("Stats") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = BrandGradientEnd,
@@ -102,8 +124,8 @@ fun StatisticsScreen(viewModel: StatisticsViewModel, onNavClick: (Int) -> Unit) 
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                    onClick = { showAboutDialog = true },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                     label = { Text("More") }
                 )
             }

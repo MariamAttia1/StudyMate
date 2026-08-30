@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
@@ -63,6 +65,26 @@ fun DayAgendaScreen(date: String, viewModel: DayAgendaViewModel, onBack: () -> U
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(1) } // Default to Calendar as this is reached via calendar
+    var showAboutDialog by remember { mutableStateOf(false) }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("Close")
+                }
+            },
+            title = { Text("About StudyMate") },
+            text = {
+                Column {
+                    Text("Version: 1.0.0")
+                    Spacer(Modifier.height(8.dp))
+                    Text("StudyMate is your personal assistant to manage study tasks efficiently. Track your progress, schedule reminders, and achieve your goals!")
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = AppBackground,
@@ -108,13 +130,16 @@ fun DayAgendaScreen(date: String, viewModel: DayAgendaViewModel, onBack: () -> U
                         selectedTab = 2
                         context.startActivity(android.content.Intent(context, android.example.myapplication.ui.stats.StatisticsActivity::class.java))
                     },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
                     label = { Text("Stats") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                    onClick = { 
+                        selectedTab = 3
+                        showAboutDialog = true
+                    },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                     label = { Text("More") }
                 )
             }
