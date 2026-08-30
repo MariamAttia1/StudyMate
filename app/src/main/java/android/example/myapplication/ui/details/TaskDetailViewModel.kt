@@ -14,9 +14,9 @@ class TaskDetailViewModel(private val repository: TaskRepository) : ViewModel() 
         emit(repository.getTaskById(id))
     }
 
-    fun markComplete(task: TaskEntity) {
+    fun toggleComplete(task: TaskEntity) {
         viewModelScope.launch {
-            repository.update(task.copy(completed = true))
+            repository.update(task.copy(completed = !task.completed))
         }
     }
 

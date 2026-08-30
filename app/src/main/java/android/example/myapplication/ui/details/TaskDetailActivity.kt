@@ -125,12 +125,16 @@ fun TaskDetailScreen(taskId: Int, viewModel: TaskDetailViewModel, onBack: () -> 
                 // Action Buttons
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedButton(
-                        onClick = { viewModel.markComplete(t); onBack() },
+                        onClick = { viewModel.toggleComplete(t); onBack() },
                         modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(28.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, BrandGradientEnd)
                     ) {
-                        Text("Mark Complete", color = BrandGradientEnd, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (t.completed) "Mark Pending" else "Mark Complete",
+                            color = BrandGradientEnd,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     OutlinedButton(
                         onClick = { viewModel.deleteTask(t); onBack() },
